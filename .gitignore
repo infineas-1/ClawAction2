@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+build/
+frontend/build/
+
+# Env / secrets
+.env
+*.env
+backend/.env
+frontend/.env*
+
+# Python
+__pycache__/
+*.pyc
+backend/.venv/
+
+# Netlify
+.netlify/
+
+# OS
+.DS_Store
