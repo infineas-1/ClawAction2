@@ -32,7 +32,7 @@ import {
   Brain,
 } from "lucide-react";
 import { toast } from "sonner";
-import { API, useAuth, authFetch } from "@/App";
+import { API, useAuth, authFetch, getApiErrorMessage } from "@/App";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,6 +76,12 @@ export default function Dashboard() {
     fetchNextSlot();
   }, []);
 
+  useEffect(() => {
+    if (user?.onboarding && !user.onboarding.completed) {
+      navigate("/onboarding");
+    }
+  }, [user, navigate]);
+
   const fetchNextSlot = async () => {
     try {
       const response = await authFetch(`${API}/slots/next`);
@@ -93,7 +99,11 @@ export default function Dashboard() {
     navigate("/login");
   };
 
-  const getSuggestions = async () => {
+  const getSuggestions = async (overrides = {}) => {
+    const time = overrides.available_time ?? availableTime;
+    const energy = overrides.energy_level ?? energyLevel;
+    const category = overrides.preferred_category ?? selectedCategory;
+
     setIsLoading(true);
     try {
       const response = await authFetch(`${API}/suggestions`, {
@@ -102,18 +112,18 @@ export default function Dashboard() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          available_time: availableTime,
-          energy_level: energyLevel,
-          preferred_category: selectedCategory,
+          available_time: time,
+          energy_level: energy,
+          preferred_category: category,
         }),
       });
 
-      if (!response.ok) throw new Error("Erreur de suggestion");
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "Erreur de suggestion"));
 
       const data = await response.json();
       setSuggestions(data);
     } catch (error) {
-      toast.error("Impossible de charger les suggestions");
+      toast.error(error.message || "Impossible de charger les suggestions");
     } finally {
       setIsLoading(false);
     }
@@ -450,6 +460,20 @@ export default function Dashboard() {
                   </>
                 )}
               </Button>
+
+              <Button
+                variant="outline"
+                className="w-full h-11 rounded-xl"
+                disabled={isLoading}
+                onClick={() => {
+                  setAvailableTime(2);
+                  setSelectedCategory(null);
+                  getSuggestions({ available_time: 2, preferred_category: null });
+                }}
+              >
+                <Timer className="w-4 h-4 mr-2" />
+                1 action en 2 minutes
+              </Button>
             </CardContent>
           </Card>
 
@@ -525,7 +549,7 @@ export default function Dashboard() {
                     className={`${categoryColors[key].replace("text-", "").split(" ")[0]} bg-opacity-5 cursor-pointer action-card`}
                     onClick={() => {
                       setSelectedCategory(key);
-                      getSuggestions();
+                      getSuggestions({ preferred_category: key });
                     }}
                     data-testid={`quick-action-${key}`}
                   >

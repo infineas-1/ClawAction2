@@ -94,6 +94,10 @@ class AIRequest(BaseModel):
     energy_level: str  # low, medium, high
     preferred_category: Optional[str] = None
 
+class OnboardingStepSubmit(BaseModel):
+    step: int = Field(ge=1, le=3)
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
 class CheckoutRequest(BaseModel):
     origin_url: str
 
@@ -175,6 +179,19 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
+def default_onboarding_state() -> Dict[str, Any]:
+    return {
+        "status": "NOT_STARTED",
+        "current_step": 1,
+        "completed": False,
+        "completed_at": None,
+        "profile": {
+            "goal": None,
+            "daily_minutes": None,
+            "energy_level": None,
+        },
+    }
+
 # ============== AUTH ROUTES ==============
 
 @api_router.post("/auth/register")
@@ -195,6 +212,7 @@ async def register(user_data: UserCreate, response: Response):
         "total_time_invested": 0,
         "streak_days": 0,
         "last_session_date": None,
+        "onboarding": default_onboarding_state(),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
@@ -334,6 +352,7 @@ async def google_oauth_callback(request: Request, response: Response, code: str 
             "total_time_invested": 0,
             "streak_days": 0,
             "last_session_date": None,
+            "onboarding": default_onboarding_state(),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         await db.users.insert_one(user_doc)
@@ -412,7 +431,8 @@ async def get_me(user: dict = Depends(get_current_user)):
         "picture": user.get("picture"),
         "subscription_tier": user.get("subscription_tier", "free"),
         "total_time_invested": user.get("total_time_invested", 0),
-        "streak_days": user.get("streak_days", 0)
+        "streak_days": user.get("streak_days", 0),
+        "onboarding": user.get("onboarding") or default_onboarding_state(),
     }
 
 @api_router.post("/auth/logout")
@@ -423,6 +443,43 @@ async def logout(request: Request, response: Response):
     
     response.delete_cookie(key="session_token", path="/", samesite="none", secure=True)
     return {"message": "Logged out successfully"}
+
+# ============== ONBOARDING ROUTES ==============
+
+@api_router.get("/onboarding/state")
+async def get_onboarding_state(user: dict = Depends(get_current_user)):
+    onboarding = user.get("onboarding") or default_onboarding_state()
+    return {"onboarding": onboarding}
+
+@api_router.post("/onboarding/step")
+async def submit_onboarding_step(payload: OnboardingStepSubmit, user: dict = Depends(get_current_user)):
+    onboarding = user.get("onboarding") or default_onboarding_state()
+    profile = onboarding.get("profile", {})
+
+    if payload.step == 1:
+        profile["goal"] = payload.payload.get("goal")
+    elif payload.step == 2:
+        profile["daily_minutes"] = payload.payload.get("daily_minutes")
+    elif payload.step == 3:
+        profile["energy_level"] = payload.payload.get("energy_level")
+
+    next_step = min(payload.step + 1, 3)
+    completed = payload.step >= 3
+
+    new_onboarding = {
+        "status": "COMPLETED" if completed else f"STEP_{payload.step}",
+        "current_step": 3 if completed else next_step,
+        "completed": completed,
+        "completed_at": datetime.now(timezone.utc).isoformat() if completed else None,
+        "profile": profile,
+    }
+
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"onboarding": new_onboarding}},
+    )
+
+    return {"onboarding": new_onboarding}
 
 # ============== MICRO-ACTIONS ROUTES ==============
 

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Timer, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { API, useAuth } from "@/App";
+import { API, getApiErrorMessage, useAuth } from "@/App";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -33,11 +33,11 @@ export default function LoginPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.detail || "Erreur de connexion");
+        throw new Error(await getApiErrorMessage(response, "Erreur de connexion"));
       }
+
+      const data = await response.json();
 
       // Store token in localStorage as backup for cross-site cookie issues
       if (data.token) {
@@ -46,7 +46,7 @@ export default function LoginPage() {
 
       setUser(data);
       toast.success("Connexion réussie !");
-      navigate("/dashboard", { state: { user: data } });
+      navigate("/onboarding", { state: { user: data } });
     } catch (error) {
       toast.error(error.message);
     } finally {

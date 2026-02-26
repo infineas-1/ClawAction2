@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Timer, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { API, useAuth } from "@/App";
+import { API, getApiErrorMessage, useAuth } from "@/App";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -50,11 +50,11 @@ export default function RegisterPage() {
         }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.detail || "Erreur lors de l'inscription");
+        throw new Error(await getApiErrorMessage(response, "Erreur lors de l'inscription"));
       }
+
+      const data = await response.json();
 
       // Store token in localStorage as backup for cross-site cookie issues
       if (data.token) {
@@ -63,7 +63,7 @@ export default function RegisterPage() {
 
       setUser(data);
       toast.success("Compte créé avec succès !");
-      navigate("/dashboard", { state: { user: data } });
+      navigate("/onboarding", { state: { user: data } });
     } catch (error) {
       toast.error(error.message);
     } finally {

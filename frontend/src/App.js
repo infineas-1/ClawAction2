@@ -18,9 +18,24 @@ import NotificationsPage from "@/pages/NotificationsPage";
 import B2BDashboard from "@/pages/B2BDashboard";
 import IntegrationsPage from "@/pages/IntegrationsPage";
 import JournalPage from "@/pages/JournalPage";
+import OnboardingPage from "@/pages/OnboardingPage";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
 export const API = `${BACKEND_URL}/api`;
+
+export const getApiErrorMessage = async (response, fallback = "Une erreur est survenue") => {
+  try {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const data = await response.json();
+      return data.detail || data.message || fallback;
+    }
+    const text = await response.text();
+    return text || fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 // Helper fetch that always includes auth token from localStorage
 export const authFetch = (url, options = {}) => {
@@ -101,7 +116,7 @@ const AuthCallback = () => {
         }
 
         setUser(userData);
-        navigate("/dashboard", { state: { user: userData } });
+        navigate("/onboarding", { state: { user: userData } });
       } catch (error) {
         console.error("OAuth error:", error);
         navigate("/login");
@@ -291,6 +306,14 @@ function AppRouter() {
         element={
           <ProtectedRoute>
             <JournalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute>
+            <OnboardingPage />
           </ProtectedRoute>
         }
       />
