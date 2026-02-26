@@ -11,6 +11,7 @@ import { API, getApiErrorMessage, useAuth } from "@/App";
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
+  const GOOGLE_AUTH_ENABLED = process.env.REACT_APP_ENABLE_GOOGLE_AUTH === "true";
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -107,7 +108,11 @@ export default function RegisterPage() {
             <Button
               variant="outline"
               className="w-full h-12 rounded-xl"
-              onClick={handleGoogleSignup}
+              onClick={() => {
+                if (GOOGLE_AUTH_ENABLED) return handleGoogleSignup();
+                toast.info("Connexion Google bientôt disponible");
+              }}
+              disabled={!GOOGLE_AUTH_ENABLED}
               data-testid="google-signup-btn"
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
@@ -128,7 +133,7 @@ export default function RegisterPage() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              S'inscrire avec Google
+{GOOGLE_AUTH_ENABLED ? "S'inscrire avec Google" : "Google bientôt disponible"}
             </Button>
 
             <div className="relative">
